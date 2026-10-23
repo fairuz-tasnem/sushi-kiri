@@ -1,0 +1,5 @@
+/* Single entry point for all styles; imported once from src/main.tsx. */
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './screens.css';

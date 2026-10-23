@@ -1,0 +1,43 @@
+/*
+  Design tokens: every colour, font and shared size lives here.
+  All colours are flat, solid values. Change a value here and it changes
+  everywhere.
+*/
+:root {
+  /* Neutrals: cream paper, beige, brown */
+  --color-cream: #f4ecd9;
+  --color-beige: #e7dbc0;
+  --color-brown: #6a523d;
+
+  /* Greens: sage and moss are light and mid, olive is the dark text colour */
+  --color-sage: #c3cba5;
+  --color-sage-deep: #aeb98c;
+  --color-moss: #8a9668;
+  --color-olive: #3d4528;
+  --color-olive-soft: #545d3a;
+
+  /* Warm accents: burnt orange / terracotta */
+  --color-terracotta: #a84a28;
+  --color-terracotta-deep: #8c3b1d;
+
+  /* Used very sparingly */
+  --color-pink: #d9a9a1;
+
+  /*
+    Fonts.
+    Day 1 uses a system serif for titles and headings. The three display fonts
+    named in the brief (Ombre Nouveau, Peachy Naught, Wildflower Garden) are not
+    bundled, so they are not listed here. To add one later, see the "Fonts"
+    section of README.md and put its name first in --font-display.
+  */
+  --font-display: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
+    serif;
+  --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Shared sizes */
+  --radius: 4px;
+  --border: 2px solid var(--color-olive);
+  --hairline: 1px solid var(--color-brown);
+  --webcam-width: 11rem;
+  --edge-gap: 1.5rem;
+}

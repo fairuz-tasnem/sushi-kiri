@@ -1,0 +1,381 @@
+/* Shared pieces: buttons, tag, note, decorations, webcam panel, dev picker. */
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-olive);
+  background: var(--color-sage);
+  border: var(--border);
+  border-radius: var(--radius);
+  /* A hard, un-blurred edge makes the button look like a physical key. */
+  box-shadow: 0 3px 0 var(--color-olive);
+  cursor: pointer;
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out,
+    background-color 80ms ease-out;
+}
+
+.btn:hover {
+  background: var(--color-sage-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 0 var(--color-olive);
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-olive);
+}
+
+.btn--primary {
+  color: var(--color-cream);
+  background: var(--color-terracotta);
+}
+
+.btn--primary:hover {
+  background: var(--color-terracotta-deep);
+}
+
+.btn__note {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---------- Tag and note ---------- */
+
+.tag {
+  display: inline-block;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-olive);
+  background: var(--color-pink);
+  border-radius: 2px;
+}
+
+.note {
+  max-width: 34rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  color: var(--color-olive);
+  background: var(--color-beige);
+  border-left: 4px solid var(--color-terracotta);
+}
+
+/* ---------- Decorations ---------- */
+
+.chopsticks {
+  display: block;
+}
+
+.chopsticks line {
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.chopsticks__a {
+  stroke: var(--color-olive);
+}
+
+.chopsticks__b {
+  stroke: var(--color-brown);
+}
+
+/* A sushi roll seen end-on: nori, rice, filling. Sized by --maki-size. */
+.maki {
+  --maki-size: 10rem;
+  position: relative;
+  flex: none;
+  width: var(--maki-size);
+  height: var(--maki-size);
+}
+
+.maki__nori,
+.maki__rice,
+.maki__filling {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.maki__nori {
+  inset: 0;
+  background: var(--color-olive);
+}
+
+.maki__rice {
+  inset: 10%;
+  background: var(--color-cream);
+}
+
+.maki__filling {
+  inset: 34%;
+  background: var(--color-pink);
+  border: 2px solid var(--color-terracotta);
+}
+
+/* ---------- Webcam: corner preview, or full-window background on the Playing screen ---------- */
+
+.webcam {
+  position: fixed;
+  right: var(--edge-gap);
+  bottom: var(--edge-gap);
+  z-index: 10;
+  width: var(--webcam-width);
+}
+
+.webcam__frame {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  padding: 0.75rem;
+  background: var(--color-olive-soft);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+/* Two small corner marks, like a camera viewfinder. */
+.webcam__frame::before,
+.webcam__frame::after {
+  content: '';
+  position: absolute;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 0 solid var(--color-cream);
+}
+
+.webcam__frame::before {
+  top: 0.4rem;
+  left: 0.4rem;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.webcam__frame::after {
+  right: 0.4rem;
+  bottom: 0.4rem;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+
+.webcam__text {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--color-cream);
+}
+
+/* The picture fills the frame; object-fit: cover crops instead of stretching.
+   scaleX(-1) mirrors it so the player sees themselves like in a mirror. */
+.webcam__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+/* The viewfinder corner marks would sit on top of the picture, so hide them. */
+.webcam--live .webcam__frame::before,
+.webcam--live .webcam__frame::after {
+  display: none;
+}
+
+/* Playing screen: the video becomes the whole backdrop, behind the .tray (z-index 1). */
+.webcam--background {
+  inset: 0;
+  width: auto;
+  z-index: 0;
+}
+
+.webcam--background .webcam__frame {
+  height: 100%;
+  aspect-ratio: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+/* ---------- Game canvas (Playing screen) ---------- */
+
+/* Fills the whole window and is transparent, so the camera video shows through.
+   It sits inside .tray, whose z-index (1) already puts it above the full-window video.
+   z-index 1 here puts it above the placeholder card too, so the sushi is never hidden
+   behind it (the card goes away once the real HUD exists; swap to -1 to put it under).
+   The camera panel (10) and fingertip cursor (20) are outside .tray and stay above it.
+   pointer-events: none means it never blocks clicks on the screen's buttons. */
+.game-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- Camera notice (loading / blocked / unavailable) ---------- */
+
+.camera-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.camera-notice__title {
+  font-weight: 600;
+}
+
+/* ---------- Hand tracking: status notice and fingertip cursor ---------- */
+
+/* "Hand detected" gets a calmer edge than the terracotta used for problems. */
+.tracking-notice[data-state='tracking'] {
+  border-left-color: var(--color-olive-soft);
+}
+
+/* Drawn on top of everything (tray z-index 1, webcam panel and dev picker 10) so it is
+   visible over the full-window video even where the game card sits. HandCursor.tsx moves
+   it with transform and sets --cursor-size; it stays hidden until a fingertip is tracked. */
+.hand-cursor {
+  --cursor-size: 1.75rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  width: var(--cursor-size);
+  height: var(--cursor-size);
+  pointer-events: none;
+  visibility: hidden;
+  background: var(--color-terracotta);
+  border: 3px solid var(--color-cream);
+  border-radius: 50%;
+  /* A hard, un-blurred outer ring, so it stands out on both bright and dark video. */
+  box-shadow: 0 0 0 3px var(--color-olive);
+  will-change: transform;
+}
+
+.hand-cursor[hidden] {
+  display: none;
+}
+
+/* A small centre dot marks the exact fingertip point. */
+.hand-cursor::after {
+  content: '';
+  position: absolute;
+  inset: 30%;
+  background: var(--color-cream);
+  border-radius: 50%;
+}
+
+/* ---------- Development screen picker (dev builds only) ---------- */
+
+.dev-picker {
+  position: fixed;
+  left: var(--edge-gap);
+  bottom: var(--edge-gap);
+  z-index: 10;
+  font-size: 0.8rem;
+  color: var(--color-olive);
+  background: var(--color-beige);
+  border: var(--hairline);
+  border-radius: var(--radius);
+}
+
+.dev-picker__summary {
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.dev-picker__list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.dev-picker__button {
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.8rem;
+  text-align: left;
+  color: var(--color-olive);
+  background: var(--color-cream);
+  border: var(--hairline);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.dev-picker__button:hover {
+  background: var(--color-sage);
+}
+
+.dev-picker__button:active {
+  background: var(--color-sage-deep);
+}
+
+.dev-picker__button[aria-current='page'] {
+  font-weight: 700;
+  background: var(--color-sage);
+}
+
+/* ---------- Gesture hint (Task 6) ---------- */
+
+/* A small, readable pill at the top centre, above the tray (1), webcam panel and dev picker (10)
+   and fingertip cursor (20). It never blocks clicks and fades out by itself (the component is
+   removed after a couple of seconds). A command that did nothing here is calmer: beige, not cream. */
+.gesture-hint {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  z-index: 30;
+  max-width: calc(100vw - 2rem);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  transform: translateX(-50%);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-olive);
+  background: var(--color-cream);
+  border: var(--border);
+  border-radius: var(--radius);
+  pointer-events: none;
+  animation: gesture-hint-in 150ms ease-out;
+}
+
+.gesture-hint--unused {
+  font-weight: 400;
+  background: var(--color-beige);
+  border-color: var(--color-brown);
+  color: var(--color-brown);
+}
+
+@keyframes gesture-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -0.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gesture-hint {
+    animation: none;
+  }
+}

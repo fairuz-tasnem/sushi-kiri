@@ -1,0 +1,69 @@
+import type { GameScreen, NavigateFn } from '../game/gameScreen'
+import StartScreen from './StartScreen'
+import InstructionsScreen from './InstructionsScreen'
+import SettingsScreen from './SettingsScreen'
+import CalibrationScreen from './CalibrationScreen'
+import GameScreenPlaceholder from './GameScreenPlaceholder'
+import LevelCompleteScreen from './LevelCompleteScreen'
+import LevelFailedScreen from './LevelFailedScreen'
+import GameOverScreen from './GameOverScreen'
+import VictoryScreen from './VictoryScreen'
+import GoodbyeScreen from './GoodbyeScreen'
+
+interface CurrentScreenProps {
+  screen: GameScreen
+  onNavigate: NavigateFn
+  /** The score of the game that last ended; shown on the Game Over screen. */
+  finalScore: number
+  /** Called by the Game screen with the final score when the last life is lost. */
+  onGameOver: (finalScore: number) => void
+}
+
+/**
+ * Picks the component for the current screen name.
+ * The `default` branch makes TypeScript report an error if a screen is added
+ * to GAME_SCREENS but not handled here.
+ */
+export default function CurrentScreen({
+  screen,
+  onNavigate,
+  finalScore,
+  onGameOver,
+}: CurrentScreenProps) {
+  switch (screen) {
+    case 'start':
+      return <StartScreen onNavigate={onNavigate} />
+    case 'instructions':
+      return <InstructionsScreen onNavigate={onNavigate} />
+    case 'settings':
+      return <SettingsScreen onNavigate={onNavigate} />
+    case 'calibration':
+      return <CalibrationScreen onNavigate={onNavigate} />
+    // 'game' and 'pause' render the SAME component in the same place, so React keeps it mounted
+    // when the player pauses and resumes: the game (score, lives, sushi, bonus) is frozen, not
+    // restarted. Any other screen unmounts it, so the next game starts fresh.
+    case 'game':
+    case 'pause':
+      return (
+        <GameScreenPlaceholder
+          paused={screen === 'pause'}
+          onNavigate={onNavigate}
+          onGameOver={onGameOver}
+        />
+      )
+    case 'levelComplete':
+      return <LevelCompleteScreen onNavigate={onNavigate} />
+    case 'levelFailed':
+      return <LevelFailedScreen onNavigate={onNavigate} />
+    case 'gameOver':
+      return <GameOverScreen onNavigate={onNavigate} finalScore={finalScore} />
+    case 'victory':
+      return <VictoryScreen onNavigate={onNavigate} />
+    case 'goodbye':
+      return <GoodbyeScreen onNavigate={onNavigate} />
+    default: {
+      const unhandled: never = screen
+      return unhandled
+    }
+  }
+}
