@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { GameScreen } from './game/gameScreen'
+import { gameConfig } from './game/gameConfig'
+import { newRun, nextRunSetup } from './game/levelProgress'
+import type { LevelResult, RunSetup } from './game/levelProgress'
 import { CameraContext } from './camera/CameraContext'
 import { useCameraStream } from './camera/useCameraStream'
 import CurrentScreen from './screens/CurrentScreen'
@@ -26,11 +29,72 @@ const CURSOR_SCREENS: readonly GameScreen[] = ['calibration', 'game']
 export default function App() {
   // The one piece of navigation state. See src/game/gameScreen.ts.
   const [screen, setScreen] = useState<GameScreen>('start')
+  // The current screen, readable from callbacks without going stale (see go() below).
+  const screenRef = useRef<GameScreen>('start')
 
   // The score of the game that last ended, kept here only so the Game Over screen can show it.
-  // Everything else about a game (lives, objects, bonus) lives inside the Game screen's canvas
-  // and disappears with it, which is what makes the next game start fresh.
+  // Everything else about a level (objects, bonus, the level clock) lives inside the Game
+  // screen's canvas and disappears with it, which is what makes the next level start fresh.
   const [finalScore, setFinalScore] = useState(0)
+
+  // Which level the Game screen plays next and how many lives it starts with. This is the only
+  // thing that has to survive between levels, so it lives here, above the Game screen.
+  const [run, setRun] = useState<RunSetup>(() => newRun(gameConfig.startingLives))
+  // How the level that just ended went, for the Level Complete and Level Failed screens.
+  const [lastResult, setLastResult] = useState<LevelResult | null>(null)
+
+  /** The one place the screen changes, so screenRef always matches what is showing. */
+  const go = useCallback((next: GameScreen) => {
+    screenRef.current = next
+    setScreen(next)
+  }, [])
+
+  /**
+   * Navigation for buttons, gestures and the dev picker. Opening the Game screen from anywhere
+   * except Pause (which resumes the same game) begins a NEW run: level 1 with full lives. The
+   * level flow below (Next level, Retry level) skips this rule on purpose by calling go() itself.
+   */
+  const navigate = useCallback(
+    (next: GameScreen) => {
+      const from = screenRef.current
+      if (next === 'game' && from !== 'pause' && from !== 'game') {
+        setRun(newRun(gameConfig.startingLives))
+      }
+      go(next)
+    },
+    [go],
+  )
+
+  /**
+   * The Game screen reports its level ending here, once. Decide the next setup and open the
+   * matching screen. Ignored if the player has already left the Game screen (a late callback).
+   */
+  const handleLevelEnd = useCallback(
+    (result: LevelResult) => {
+      if (screenRef.current !== 'game' && screenRef.current !== 'pause') return
+      setLastResult(result)
+      setRun(nextRunSetup(result, gameConfig.startingLives))
+      switch (result.outcome) {
+        case 'complete':
+          go('levelComplete')
+          break
+        case 'victory':
+          go('victory')
+          break
+        case 'failed':
+          go('levelFailed')
+          break
+        case 'gameOver':
+          setFinalScore(result.score)
+          go('gameOver')
+          break
+      }
+    },
+    [go],
+  )
+
+  // Next level and Retry level: the run was already set up by handleLevelEnd, so just open the game.
+  const startPreparedLevel = useCallback(() => go('game'), [go])
 
   // The camera lives here, above every screen, so changing screens never restarts it.
   const camera = useCameraStream()
@@ -41,9 +105,9 @@ export default function App() {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const tracking = useHandTracker(video, status === 'ready')
 
-  // Hand-gesture commands (thumbs-up, open palm, V-sign) call the same setScreen the buttons use.
+  // Hand-gesture commands (thumbs-up, open palm, V-sign) call the same navigate() the buttons use.
   // They only add a second way to navigate: mouse and keyboard work whatever the camera is doing.
-  const gestureHint = useGestureCommands(screen, setScreen, tracking.subscribeGestureCommands)
+  const gestureHint = useGestureCommands(screen, navigate, tracking.subscribeGestureCommands)
 
   useEffect(() => {
     if (CAMERA_SCREENS.includes(screen) && status === 'idle') void start()
@@ -61,9 +125,14 @@ export default function App() {
               <div className="tray__inner">
                 <CurrentScreen
                   screen={screen}
-                  onNavigate={setScreen}
+                  onNavigate={navigate}
                   finalScore={finalScore}
-                  onGameOver={setFinalScore}
+                  level={run.level}
+                  startingLives={run.lives}
+                  onLevelEnd={handleLevelEnd}
+                  lastResult={lastResult}
+                  onNextLevel={startPreparedLevel}
+                  onRetryLevel={startPreparedLevel}
                 />
               </div>
             </main>
@@ -84,7 +153,7 @@ export default function App() {
           <GestureHint hint={gestureHint} />
 
           {/* Development builds only; removed from the production build. */}
-          {import.meta.env.DEV && <DevScreenPicker current={screen} onNavigate={setScreen} />}
+          {import.meta.env.DEV && <DevScreenPicker current={screen} onNavigate={navigate} />}
         </div>
       </HandTrackingContext.Provider>
     </CameraContext.Provider>

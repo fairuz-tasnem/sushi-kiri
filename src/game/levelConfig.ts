@@ -3,8 +3,8 @@
  * hard it is. Only numbers live here (plus one small lookup), so a level is tuned by editing a
  * number in the table below, never by touching game logic.
  *
- * NOT USED YET. Day 5, part 1 only defines the levels. Nothing reads this file today, so the game
- * plays exactly as before. Switching between levels is added in a later part.
+ * Read by levelProgress.ts and GameCanvas.tsx (Day 5, part 2), which play one level at a time with
+ * its clock, spawn waits and object speeds. Score restarts at 0 in every level.
  *
  * Same conventions as gameConfig.ts:
  *   - times are in seconds, speeds are per second

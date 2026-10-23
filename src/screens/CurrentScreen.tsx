@@ -1,4 +1,5 @@
 import type { GameScreen, NavigateFn } from '../game/gameScreen'
+import type { LevelResult } from '../game/levelProgress'
 import StartScreen from './StartScreen'
 import InstructionsScreen from './InstructionsScreen'
 import SettingsScreen from './SettingsScreen'
@@ -15,8 +16,15 @@ interface CurrentScreenProps {
   onNavigate: NavigateFn
   /** The score of the game that last ended; shown on the Game Over screen. */
   finalScore: number
-  /** Called by the Game screen with the final score when the last life is lost. */
-  onGameOver: (finalScore: number) => void
+  /** The level to play on the Game screen (1 to 5) and the lives it starts with. */
+  level: number
+  startingLives: number
+  /** Called by the Game screen once when its level ends in any way. */
+  onLevelEnd: (result: LevelResult) => void
+  /** How the level that just ended went; shown on Level Complete and Level Failed. */
+  lastResult: LevelResult | null
+  onNextLevel: () => void
+  onRetryLevel: () => void
 }
 
 /**
@@ -28,7 +36,12 @@ export default function CurrentScreen({
   screen,
   onNavigate,
   finalScore,
-  onGameOver,
+  level,
+  startingLives,
+  onLevelEnd,
+  lastResult,
+  onNextLevel,
+  onRetryLevel,
 }: CurrentScreenProps) {
   switch (screen) {
     case 'start':
@@ -48,13 +61,15 @@ export default function CurrentScreen({
         <GameScreenPlaceholder
           paused={screen === 'pause'}
           onNavigate={onNavigate}
-          onGameOver={onGameOver}
+          level={level}
+          startingLives={startingLives}
+          onLevelEnd={onLevelEnd}
         />
       )
     case 'levelComplete':
-      return <LevelCompleteScreen onNavigate={onNavigate} />
+      return <LevelCompleteScreen onNavigate={onNavigate} result={lastResult} onNextLevel={onNextLevel} />
     case 'levelFailed':
-      return <LevelFailedScreen onNavigate={onNavigate} />
+      return <LevelFailedScreen onNavigate={onNavigate} result={lastResult} onRetryLevel={onRetryLevel} />
     case 'gameOver':
       return <GameOverScreen onNavigate={onNavigate} finalScore={finalScore} />
     case 'victory':

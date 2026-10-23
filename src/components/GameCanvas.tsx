@@ -5,13 +5,16 @@ import { createGameLoop } from '../game/gameLoop'
 import { readPlaceholderColors, renderFrame } from '../game/renderer'
 import type { FrameHud } from '../game/renderer'
 import { playSound } from '../game/audio'
+import { createCutOutcome, createScoreState, resolveCuts, updateScoreState } from '../game/scoring'
 import {
-  createCutOutcome,
-  createScoreState,
-  isGameOver,
-  resolveCuts,
-  updateScoreState,
-} from '../game/scoring'
+  createLevelClock,
+  evaluateLevel,
+  levelGameConfig,
+  secondsLeftForDisplay,
+  tickLevelClock,
+} from '../game/levelProgress'
+import type { LevelOutcome, LevelResult } from '../game/levelProgress'
+import type { LevelConfig } from '../game/levelConfig'
 import {
   addPenaltyPopup,
   addScorePopup,
@@ -66,6 +69,16 @@ import { useHandTracking } from '../vision/HandTrackingContext'
  * A new visit to this screen is a new mount, so lives, score, bonus, objects and popups all
  * start fresh.
  *
+ * Levels (Day 5, part 2): this component plays ONE level per mount. The level (its 60-second clock,
+ * spawn waits and object speeds, from levelConfig.ts) and the lives it starts with (carried over
+ * from the level before) come in as props and are read once, when the screen opens. The level
+ * clock (src/game/levelProgress.ts) is counted down in update(), in the same loop as everything
+ * else, so it stops on pause and on unmount with no timer of its own. After every score change and
+ * every frame, evaluateLevel() says whether the level has ended (target reached, time up or no
+ * lives left); the first answer wins, finishLevel() runs once (the `ended` guard), stops the loop
+ * and the fingertip listener, and reports a LevelResult through `onLevelEnd`. App decides which
+ * screen comes next. The score starts at 0 in every level.
+ *
  * Slicing (Day 3A, part 2): the same effect also listens to the index fingertip readings that
  * App's hand tracker already publishes (see useHandTracker.ts), converts each one into canvas
  * pixels, and hands it to src/game/slicing.ts. No camera or MediaPipe code lives here.
@@ -79,14 +92,30 @@ interface GameCanvasProps {
   paused?: boolean
   /** Called with the new total each time a sushi is cut, and with 0 when the canvas starts. */
   onScoreChange?: (score: number) => void
-  /** Called once, with the final score, when the last life is lost. The loop has stopped by then. */
-  onGameOver?: (finalScore: number) => void
+  /** The level to play. Read once when the screen opens; a different level means a new mount. */
+  level: LevelConfig
+  /** Lives this level starts with (3 on a new run or a retry, the lives left after a level won). */
+  startingLives: number
+  /**
+   * Called exactly once, when the level ends in any way (target reached, time up, no lives left).
+   * The loop and the fingertip listener have stopped by then.
+   */
+  onLevelEnd: (result: LevelResult) => void
+  /** Called with the whole seconds left on the level clock: at the start, then each time it changes. */
+  onSecondsLeftChange?: (secondsLeft: number) => void
 }
 
 /** How long the "lost a life" edge frame takes to fade out, in seconds. */
 const PENALTY_FADE_SECONDS = 0.5
 
-export default function GameCanvas({ paused = false, onScoreChange, onGameOver }: GameCanvasProps) {
+export default function GameCanvas({
+  paused = false,
+  onScoreChange,
+  level,
+  startingLives,
+  onLevelEnd,
+  onSecondsLeftChange,
+}: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { subscribe, video } = useHandTracking()
 
@@ -97,13 +126,20 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
   const pausedRef = useRef(paused)
   /** Set by the main effect below; the small effect after it calls this when `paused` changes. */
   const applyPausedRef = useRef<(paused: boolean) => void>(() => {})
-  const onGameOverRef = useRef(onGameOver)
+  const onLevelEndRef = useRef(onLevelEnd)
+  const onSecondsLeftRef = useRef(onSecondsLeftChange)
+  // The level and lives are fixed for the life of this mount (see the Levels paragraph above).
+  const levelRef = useRef(level)
+  const startingLivesRef = useRef(startingLives)
   useEffect(() => {
     videoRef.current = video
   }, [video])
   useEffect(() => {
-    onGameOverRef.current = onGameOver
-  }, [onGameOver])
+    onLevelEndRef.current = onLevelEnd
+  }, [onLevelEnd])
+  useEffect(() => {
+    onSecondsLeftRef.current = onSecondsLeftChange
+  }, [onSecondsLeftChange])
   useEffect(() => {
     onScoreChangeRef.current = onScoreChange
   }, [onScoreChange])
@@ -118,23 +154,30 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
 
     const view = createCanvasView()
     const colors = readPlaceholderColors()
-    const spawner = createSushiSpawner(gameConfig)
+    const levelConfig = levelRef.current
+    // gameConfig with THIS level's spawn waits and object speeds on top, and the carried-over
+    // lives as the starting lives. Everything that spawns or scores below reads this one object.
+    const config = levelGameConfig(gameConfig, levelConfig, startingLivesRef.current)
+    const spawner = createSushiSpawner(config)
     // Score, lives and the soy sauce bonus clock (src/game/scoring.ts). Fresh on every mount, so
-    // each visit to the Playing screen starts at score 0, full lives, no bonus running.
-    const scoreState = createScoreState(gameConfig)
+    // each level starts at score 0 with no bonus running, and with the lives it was given.
+    const scoreState = createScoreState(config)
+    // The level's own 60-second clock, counted down from update() below.
+    const levelClock = createLevelClock(levelConfig)
+    let shownSeconds = -1 // the last whole-seconds value reported, so it is reported only on change
     const cuts: Sushi[] = [] // reused: what one swipe has cut
     const outcome = createCutOutcome() // reused: what those cuts scored or cost
-    let ended = false // true from the moment the last life is lost; nothing runs after that
+    let ended = false // true from the moment the level ends (any way); nothing runs after that
     let isPaused = false // true while the Pause screen is open; the state below is kept as it is
     let secondsSincePenalty = Infinity // time since the last wasabi hit, for the fading edge frame
     // What the HUD reads. The same object every frame; render() refreshes it.
     const hud: FrameHud = {
       lives: scoreState.lives,
-      maxLives: gameConfig.startingLives,
+      maxLives: gameConfig.startingLives, // the row always shows the full 3 hearts
       penalty: 0,
       soyRemaining: 0,
-      soyDuration: gameConfig.soySauceDurationSeconds,
-      multiplier: gameConfig.soySauceMultiplier,
+      soyDuration: config.soySauceDurationSeconds,
+      multiplier: config.soySauceMultiplier,
     }
     const fingertip = createFingertip()
     const popups: ScorePopup[] = []
@@ -145,10 +188,13 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
       if (ended) return // game over: no spawning, no movement, no timers
       if (!hasArea(view)) return // hidden or zero-sized: nothing to move across yet
       secondsSincePenalty += deltaSeconds
-      updateSushiSpawner(spawner, deltaSeconds, view, gameConfig)
+      updateSushiSpawner(spawner, deltaSeconds, view, config)
       updateScoreState(scoreState, deltaSeconds) // the soy sauce bonus counts down in the same loop
       ageFingertipTrail(fingertip, deltaSeconds)
       ageScorePopups(popups, deltaSeconds)
+      tickLevelClock(levelClock, deltaSeconds) // so does the level clock
+      reportSeconds()
+      checkLevelEnd() // time up (or anything else that ended the level this frame)
     }
 
     const render = () => {
@@ -204,7 +250,7 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
 
       // Turn the cuts into points, the soy sauce bonus or lost lives (src/game/scoring.ts), then
       // show the matching feedback.
-      resolveCuts(scoreState, cuts, gameConfig, outcome)
+      resolveCuts(scoreState, cuts, config, outcome)
       for (const award of outcome.awards) addScorePopup(popups, award.sushi, view, award.points)
       if (outcome.awards.length > 0) onScoreChangeRef.current?.(scoreState.score)
 
@@ -214,21 +260,44 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
         playSound('wasabi-hit') // silent if the manifest has no file for it
       }
 
-      if (isGameOver(scoreState)) endGame()
+      checkLevelEnd() // this swipe may have reached the target or taken the last life
     })
 
     const loop = createGameLoop({ update, render })
 
-    // The last life is gone. In this order: mark the game ended (so update() and the fingertip
-    // listener do nothing from now on), draw one final frame so the screen shows the last hit
-    // and the empty hearts, stop the loop and the listener, and only then tell the screen.
-    function endGame() {
+    // Tells the screen the whole seconds left, only when that number changes (about once a second).
+    function reportSeconds() {
+      const seconds = secondsLeftForDisplay(levelClock)
+      if (seconds === shownSeconds) return
+      shownSeconds = seconds
+      onSecondsLeftRef.current?.(seconds)
+    }
+
+    // Asks levelProgress.ts whether the level is over. Called after every score change and every
+    // frame; does nothing while the level is still being played.
+    function checkLevelEnd() {
+      if (ended) return
+      const outcome = evaluateLevel(levelConfig, scoreState, levelClock)
+      if (outcome) finishLevel(outcome)
+    }
+
+    // The level is over. In this order: mark it ended (so update() and the fingertip listener do
+    // nothing from now on, and a second call does nothing), draw one final frame so the screen
+    // shows the last hit, stop the loop and the listener, and only then tell the screen. This is
+    // the ONLY place a level ends, which is what makes every transition happen at most once.
+    function finishLevel(outcome: LevelOutcome) {
       if (ended) return
       ended = true
       render()
       loop.stop()
       unsubscribe()
-      onGameOverRef.current?.(scoreState.score)
+      onLevelEndRef.current({
+        outcome,
+        level: levelConfig.level,
+        score: scoreState.score,
+        target: levelConfig.targetScore,
+        livesLeft: scoreState.lives,
+      })
     }
     // Pause stops the ONE loop and forgets the swipe in progress; resume starts that same loop
     // again (its first frame moves nothing, so there is no jump). Nothing else is touched, so the
@@ -245,6 +314,7 @@ export default function GameCanvas({ paused = false, onScoreChange, onGameOver }
     }
 
     onScoreChangeRef.current?.(scoreState.score)
+    reportSeconds()
     resize()
     const observer = new ResizeObserver(resize)
     observer.observe(canvas)
