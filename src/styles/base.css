@@ -1,0 +1,54 @@
+/* Small reset plus page-wide defaults. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--color-olive);
+  background: var(--color-moss);
+}
+
+h1,
+p,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+}
+
+/* Keyboard focus: one clear ring, used by every focusable element. */
+:focus-visible {
+  outline: 3px solid var(--color-olive);
+  outline-offset: 3px;
+}
+
+/* Headings are focused by code when a screen opens; they are not controls. */
+h1:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

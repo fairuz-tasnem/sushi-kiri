@@ -1,0 +1,36 @@
+@font-face { font-family: 'Fraunces'; src: url('/fonts/Fraunces.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+/*
+  Design tokens: every colour, font and shared size lives here.
+  All colours are flat, solid values. Change a value here and it changes
+  everywhere.
+*/
+:root {
+  /* Neutrals: cream paper, beige, brown */
+  --color-cream: #f5efdf;
+  --color-beige: #e7dbc0;
+  --color-brown: #6a523d;
+
+  /* Greens: sage and moss are light and mid, olive is the dark text colour */
+  --color-sage: #c3cba5;
+  --color-sage-deep: #aeb98c;
+  --color-moss: #8a9668;
+  --color-olive: #233d2b;
+  --color-olive-soft: #545d3a;
+
+  /* Warm accents: burnt orange / terracotta */
+  --color-terracotta: #a84a28;
+  --color-terracotta-deep: #8c3b1d;
+
+  /* Used very sparingly */
+  --color-pink: #d9a9a1;
+
+  --font-display: 'Fraunces', serif;
+  --font-sans: var(--font-display);
+
+  /* Shared sizes */
+  --radius: 0px;
+  --border: 2px solid var(--color-olive);
+  --hairline: 1px solid var(--color-brown);
+  --webcam-width: 11rem;
+  --edge-gap: 1.5rem;
+}

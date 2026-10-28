@@ -1,0 +1,239 @@
+/* Page layout and per-screen styles. */
+
+/* ---------- Page: moss background with a cream tray ---------- */
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 1rem;
+  background: var(--color-moss);
+}
+
+.tray {
+  position: relative;
+  z-index: 1; /* keeps every screen above the full-window camera video */
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 2rem);
+  min-height: calc(100dvh - 2rem);
+  background: var(--color-cream);
+  border: var(--border);
+  border-radius: 6px;
+  /* A thin inner line, like the rim of a lacquer tray. */
+  outline: 1px solid var(--color-moss);
+  outline-offset: -0.5rem;
+}
+
+.tray__main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  padding: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 5vw, 4.5rem);
+}
+
+.tray__inner {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+}
+
+/* On narrow windows the fixed camera panel could cover content, so leave room. */
+@media (max-width: 56rem) {
+  .tray__main {
+    padding-bottom: calc(var(--webcam-width) * 0.75 + var(--edge-gap) * 2);
+  }
+}
+
+/* ---------- Playing screen: the live camera is the backdrop ---------- */
+/* Only applied while the camera is running; otherwise the normal tray is shown. */
+
+.app--playing {
+  padding: 0;
+  background: transparent;
+}
+
+.app--playing .tray {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.app--playing .tray__main {
+  align-items: flex-start;
+  padding: 1rem;
+}
+
+.app--playing .tray__inner {
+  margin-inline: 0;
+}
+
+/* The existing HUD/controls get their own solid card so they stay readable over video. */
+.app--playing .screen {
+  padding: 1.25rem 1.5rem;
+  background: var(--color-cream);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+/* ---------- Start screen ---------- */
+
+.start {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: clamp(2rem, 8vw, 6rem);
+}
+
+.start__title {
+  margin-bottom: 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(3.25rem, 8vw, 6rem);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.start__lead {
+  max-width: 28rem;
+  margin-top: 1.25rem;
+  font-size: 1.1rem;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  width: min(100%, 18rem);
+  margin-top: 2rem;
+}
+
+.start__status {
+  max-width: 28rem;
+  margin-top: 1.75rem;
+  font-size: 0.9rem;
+  color: var(--color-brown);
+}
+
+@media (max-width: 52rem) {
+  .start {
+    grid-template-columns: 1fr;
+    row-gap: 2rem;
+  }
+
+  .start .maki {
+    --maki-size: 5.5rem;
+    order: -1;
+  }
+}
+
+/* ---------- Secondary and placeholder screens ---------- */
+
+.screen {
+  max-width: 36rem;
+}
+
+.screen__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.screen__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.25rem, 5vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.screen__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+}
+
+.screen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+  margin-top: 2rem;
+}
+
+.lead {
+  max-width: 34rem;
+  font-size: 1.1rem;
+}
+
+/* The running score on the Playing screen's card. */
+.game-score {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--color-olive);
+}
+
+.game-score strong {
+  color: var(--color-terracotta);
+}
+
+/* Numbered steps on the Instructions screen. */
+.steps {
+  display: grid;
+  gap: 1rem;
+  counter-reset: step;
+}
+
+.steps li {
+  position: relative;
+  max-width: 34rem;
+  padding-left: 2.25rem;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  position: absolute;
+  top: -0.1rem;
+  left: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--color-terracotta);
+}
+
+/* Reserved items on the Settings screen, each marked with one rice grain. */
+.status-list {
+  max-width: 34rem;
+  border-top: var(--hairline);
+}
+
+.status-list__row {
+  position: relative;
+  padding: 0.85rem 0 0.85rem 1.75rem;
+  border-bottom: var(--hairline);
+}
+
+.status-list__row::before {
+  content: '';
+  position: absolute;
+  top: 1.35rem;
+  left: 0.15rem;
+  width: 0.8rem;
+  height: 0.45rem;
+  background: var(--color-cream);
+  border: 1.5px solid var(--color-brown);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+
+.status-list dt {
+  font-weight: 600;
+}
+
+.status-list dd {
+  color: var(--color-brown);
+}
